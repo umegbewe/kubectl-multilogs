@@ -6,12 +6,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-func (t *App) initMainArea() *tview.Flex {
-	return tview.NewFlex().
-		AddItem(t.hierarchy, 0, 1, true).
-		AddItem(t.logViewContainer, 0, 5, false)
-}
-
 func (t *App) refreshHierarchy() {
 	root := t.hierarchy.GetRoot()
 	if root == nil {
@@ -24,7 +18,7 @@ func (t *App) refreshHierarchy() {
 }
 
 func (t *App) loadNamespaces(root *tview.TreeNode) {
-	namespaces, err := t.Model.GetNamespaces()
+	namespaces, err := t.model.GetNamespaces()
 	if err != nil {
 		t.statusBar.SetText(fmt.Sprintf("Error fetching namespaces: %v", err))
 		return
@@ -44,7 +38,7 @@ func (t *App) loadPods(nsNode *tview.TreeNode) {
 	namespace := nsNode.GetReference().(string)
 	t.showLoading(fmt.Sprintf("Fetching pods for %s", namespace))
 	t.clearLogView()
-	pods, err := t.Model.GetPods(namespace)
+	pods, err := t.model.GetPods(namespace)
 	if err != nil {
 		t.App.QueueUpdateDraw(func() {
 			t.statusBar.SetText(fmt.Sprintf("Error fetching pods for %s: %v", namespace, err))
@@ -70,7 +64,7 @@ func (t *App) loadPods(nsNode *tview.TreeNode) {
 func (t *App) loadContainers(podNode *tview.TreeNode, namespace, pod string) {
 	t.showLoading(fmt.Sprintf("Fetching containers for %s/%s", namespace, pod))
 	t.clearLogView()
-	containers, err := t.Model.GetContainers(namespace, pod)
+	containers, err := t.model.GetContainers(namespace, pod)
 	if err != nil {
 		t.App.QueueUpdateDraw(func() {
 			t.statusBar.SetText(fmt.Sprintf("Error fetching containers for %s/%s: %v", namespace, pod, err))

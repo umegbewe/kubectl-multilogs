@@ -334,7 +334,7 @@ func (c *Client) GetRecentLogs() ([]string, error) {
 		if err != nil {
 			continue 
 		}
-		defer podLogs.Close()
+		podLogs.Close()
 
 		buf := new(bytes.Buffer)
 		_, err = io.Copy(buf, podLogs)

@@ -13,9 +13,7 @@ type App struct {
 	App              *tview.Application
 	layout           *tview.Flex
 	hierarchy        *tview.TreeView
-	logViewContainer *tview.Flex
 	logTextView      *ScrollableTextView
-	scrollBar        *ScrollBar
 	searchInput      *tview.InputField
 	statusBar        *tview.TextView
 	clusterDropdown  *tview.DropDown
@@ -27,7 +25,11 @@ type App struct {
 	nextMatchBtn     *tview.Button
 	matchCountText   *tview.TextView
 	searchTimer      *time.Timer
-	Model            *model.Model
+	model            *model.Model
+	tabBar           *tview.Flex
+	logPages         *tview.Pages
+	tabs             []*Tab
+	activeTab        int
 }
 
 func LogExplorerTUI(model *model.Model) *App {
@@ -37,7 +39,7 @@ func LogExplorerTUI(model *model.Model) *App {
 		hierarchy:   tview.NewTreeView().SetGraphics(false),
 		searchInput: tview.NewInputField().SetLabel("Search: ").SetLabelColor(colors.Accent),
 		statusBar:   tview.NewTextView().SetTextAlign(tview.AlignLeft),
-		Model:       model,
+		model:       model,
 	}
 
 	tui.setupUI()
@@ -46,7 +48,9 @@ func LogExplorerTUI(model *model.Model) *App {
 }
 
 func (t *App) setupUI() error {
-	clusters := t.Model.GetClusterNames()
+	t.initTabs()
+
+	clusters := t.model.GetClusterNames()
 	if len(clusters) == 0 {
 		return fmt.Errorf("no clusters found")
 	}
@@ -58,17 +62,23 @@ func (t *App) setupUI() error {
 	root := tview.NewTreeNode("Pods")
 	t.hierarchy.SetRoot(root)
 
-	t.logViewContainer = t.initLogView()
-
 	topBar := t.initTopBar()
-	mainArea := t.initMainArea()
 
-	t.layout.SetDirection(tview.FlexRow).
+	mainContent := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(t.tabBar, 1, 0, false).
+		AddItem(t.logPages, 0, 1, true)
+
+	mainArea := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(t.hierarchy, 0, 2, false).
+		AddItem(mainContent, 0, 5, true)
+
+	t.layout = tview.NewFlex().
+		SetDirection(tview.FlexRow).
 		AddItem(topBar, 1, 0, false).
 		AddItem(mainArea, 0, 1, true).
 		AddItem(t.statusBar, 1, 0, false)
 
-	initialCluster := t.Model.GetCurrentContext()
+	initialCluster := t.model.GetCurrentContext()
 	for i, cluster := range clusters {
 		if cluster == initialCluster {
 			t.clusterDropdown.SetCurrentOption(i)
@@ -80,9 +90,10 @@ func (t *App) setupUI() error {
 }
 
 func (t *App) Run() error {
+	t.App.EnableMouse(true)
 	t.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyCtrlC {
-			if t.Model.LiveTailActive {
+			if t.model.LiveTailActive {
 				t.stopLiveTail()
 			}
 			t.App.Stop()
@@ -91,5 +102,5 @@ func (t *App) Run() error {
 		return event
 	})
 
-	return t.App.SetRoot(t.layout, true).EnableMouse(true).Run()
+	return t.App.SetRoot(t.layout, true).Run()
 }

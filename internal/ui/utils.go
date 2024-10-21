@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -22,16 +21,17 @@ func (t *App) showLoading(message string) {
 		t.statusBar.SetText(message + " Loading...")
 	})
 
-	go func() {
-		for i := 0; i < 3; i++ {
-			time.Sleep(500 * time.Millisecond)
-			t.App.QueueUpdateDraw(func() {
-				currentText := t.statusBar.GetText(false)
-				t.statusBar.SetText(currentText + ".")
-			})
-		}
-	}()
+	// // go func() {
+	// 	for i := 0; i < 3; i++ {
+	// 		time.Sleep(500 * time.Millisecond)
+	// 		t.App.QueueUpdateDraw(func() {
+	// 			currentText := t.statusBar.GetText(false)
+	// 			t.statusBar.SetText(currentText + ".")
+	// 		})
+	// 	}
+	// }()
 }
+
 func createTreeNode(label string, isLeaf bool) *tview.TreeNode {
 	node := tview.NewTreeNode("")
 
@@ -66,7 +66,11 @@ func createButton(label string, bgColor tcell.Color, selectedFunc func()) *tview
 }
 
 func (t *App) updateScrollBar() {
-	content := t.logTextView.GetText(true)
+	if t.activeTab < 0 || t.activeTab >= len(t.tabs) {
+		return
+	}
+	activeTab := t.tabs[t.activeTab]
+	content := activeTab.LogView.GetText(true)
 
 	lines := strings.Count(content, "\n")
 	totalLines := lines
@@ -74,10 +78,18 @@ func (t *App) updateScrollBar() {
 		totalLines++
 	}
 
-	_, _, _, height := t.logTextView.GetInnerRect()
-	firstVisibleLine, _ := t.logTextView.GetScrollOffset()
+	_, _, _, height := activeTab.LogView.GetInnerRect()
+	firstVisibleLine, _ := activeTab.LogView.GetScrollOffset()
 
-	t.scrollBar.SetTotalLines(totalLines)
-	t.scrollBar.SetVisibleLines(height)
-	t.scrollBar.SetCurrentLine(firstVisibleLine)
+	activeTab.LogView.ScrollBar.SetTotalLines(totalLines)
+	activeTab.LogView.ScrollBar.SetVisibleLines(height)
+	activeTab.LogView.ScrollBar.SetCurrentLine(firstVisibleLine)
+}
+
+func (t *App) closeAllTabs() {
+	for len(t.tabs) > 0 {
+		t.closeTab(t.tabs[0])
+	}
+	t.activeTab = -1
+	t.App.SetFocus(t.hierarchy)
 }

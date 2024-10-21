@@ -1,9 +1,9 @@
 package search
 
 import (
-	"strings"
 	"sync"
 )
+
 const MaxLogLines = 10000
 
 type LogLine struct {
@@ -11,18 +11,15 @@ type LogLine struct {
 }
 
 type LogBuffer struct {
-	Lines           []LogLine
-	mutex           sync.RWMutex
-	maxLines        int
-	SearchIdx       *SearchIndex
-	NewLinesAdded   bool
+	Lines    []LogLine
+	mutex    sync.RWMutex
+	maxLines int
 }
 
 func NewLogBuffer() *LogBuffer {
 	return &LogBuffer{
-		Lines:     make([]LogLine, 0, MaxLogLines),
-		maxLines:  MaxLogLines,
-		SearchIdx: NewSearchIndex(),
+		Lines:    make([]LogLine, 0, MaxLogLines),
+		maxLines: MaxLogLines,
 	}
 }
 
@@ -31,14 +28,10 @@ func (lb *LogBuffer) AddLine(content string) {
 	defer lb.mutex.Unlock()
 
 	lb.Lines = append(lb.Lines, LogLine{Content: content})
-
-	words := strings.Fields(strings.ToLower(content))
-	lineIdx := len(lb.Lines) - 1
-	for _, word := range words {
-		lb.SearchIdx.Add(word, lineIdx)
+	
+	if len(lb.Lines) > lb.maxLines {
+		lb.Lines = lb.Lines[len(lb.Lines)-lb.maxLines:]
 	}
-
-	lb.NewLinesAdded = true
 }
 
 func (lb *LogBuffer) GetLines() []LogLine {
@@ -53,7 +46,6 @@ func (lb *LogBuffer) Clear() {
 	defer lb.mutex.Unlock()
 
 	lb.Lines = make([]LogLine, 0, lb.maxLines)
-	lb.SearchIdx = NewSearchIndex()
 }
 
 func (lb *LogBuffer) GetLinesContent() []string {

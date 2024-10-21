@@ -7,12 +7,10 @@ import (
 	"time"
 
 	k8s "github.com/umegbewe/kubectl-multilog/internal/k8sclient"
-	"github.com/umegbewe/kubectl-multilog/internal/search"
 )
 
 type Model struct {
 	K8sClient         *k8s.Client
-	LogBuffer         *search.LogBuffer
 	LiveTailActive    bool
 	LiveTailCtx       context.Context
 	LiveTailCancel    context.CancelFunc
@@ -20,15 +18,11 @@ type Model struct {
 	LogMutex          sync.Mutex
 	LiveTailStartTime time.Time
 	LogStreamCancel   context.CancelFunc
-	SearchResult      *search.SearchResult
-	CurrentMatchIndex int
-	SearchOptions     search.SearchOptions
 }
 
 func NewModel(k8sClient *k8s.Client) *Model {
 	return &Model{
-		K8sClient:        k8sClient,
-		LogBuffer:        search.NewLogBuffer(),
+		K8sClient: k8sClient,
 	}
 }
 
@@ -59,9 +53,4 @@ func (m *Model) SwitchCluster(contextName string) error {
 	}
 
 	return nil
-}
-
-func (m *Model) PerformSearch(term string, options search.SearchOptions) (*search.SearchResult, error) {
-	lines := m.LogBuffer.GetLinesContent()
-	return search.PerformSearch(lines, term, options)
 }

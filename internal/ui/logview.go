@@ -34,6 +34,9 @@ func (t *App) initTabs() {
 }
 
 func (t *App) addNewTab(namespace, pod, container string) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	scrollBar := NewScrollBar()
 	logTextView := NewScrollableTextView(t.App, scrollBar, func() {
 		t.updateScrollBar()
@@ -262,15 +265,18 @@ func (t *App) loadLogs(namespace, pod, container string) {
 		t.model.LogStreamCancel()
 	}
 
-	idx := t.getTabIndex(namespace, pod, container)
-	if idx == -1 {
-		// add new tab if it doesn't exist
-		t.addNewTab(namespace, pod, container)
-		idx = len(t.tabs) - 1
-	}
+	t.App.QueueUpdateDraw(func() {
+		idx := t.getTabIndex(namespace, pod, container)
+		if idx == -1 {
+			t.addNewTab(namespace, pod, container)
+			idx = len(t.tabs) - 1
+		}
+		t.switchToTab(idx)
+	})
 
-	t.switchToTab(idx)
+	t.mutex.Lock()
 	activeTab := t.tabs[t.activeTab]
+	t.mutex.Unlock()
 
 	t.showLoading(fmt.Sprintf("Loading logs for %s/%s/%s", namespace, pod, container))
 
@@ -284,6 +290,9 @@ func (t *App) loadLogs(namespace, pod, container string) {
 	}
 
 	t.App.QueueUpdateDraw(func() {
+		t.mutex.Lock()
+		defer t.mutex.Unlock()
+
 		activeTab.LogView.Clear()
 		activeTab.LogBuffer.Clear()
 		for _, line := range strings.Split(logs, "\n") {
@@ -315,18 +324,23 @@ func (t *App) loadLogs(namespace, pod, container string) {
 }
 
 func (t *App) processNewLogEntry(namespace, pod, container, logEntry string) {
+	t.mutex.Lock()
 	idx := t.getTabIndex(namespace, pod, container)
 	if idx == -1 {
+		t.mutex.Unlock()
 		return
 	}
-
 	tab := t.tabs[idx]
+	t.mutex.Unlock()
+
 	tab.LogBuffer.AddLine(logEntry)
 
 	t.App.QueueUpdateDraw(func() {
+		t.mutex.Lock()
+		defer t.mutex.Unlock()
+
 		if t.activeTab == idx {
 			fmt.Fprintf(tab.LogView, "%s\n", logEntry)
-			// tab.LogView.ScrollToEnd()
 			t.updateScrollBar()
 		}
 	})

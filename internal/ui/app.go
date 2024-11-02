@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -31,6 +32,7 @@ type App struct {
 	tabs             []*Tab
 	activeTab        int
 	contextPages     *tview.Pages
+	mutex            sync.Mutex
 }
 
 func LogExplorerTUI(model *model.Model) *App {

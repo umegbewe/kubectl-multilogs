@@ -66,6 +66,10 @@ func (t *App) addNewTab(namespace, pod, container string) {
 		CurrentMatchIndex: 0,
 	}
 
+	logTextView.SetOnLineClick(func(lineNumber int) {
+        t.showContextWindowForTab(tab, lineNumber)
+    })
+
 	t.tabs = append(t.tabs, tab)
 
 	t.logPages.AddPage(tab.Pod+"-"+tab.Container, logViewContainer, true, len(t.tabs) == 1)
@@ -171,8 +175,8 @@ func (t *App) closeTab(tab *Tab) {
 		t.searchInput.SetText("")
 		t.updateSearchOptionButtons()
 		t.matchCountText.SetText("")
-		t.prevMatchBtn.SetDisabled(true)
-		t.nextMatchBtn.SetDisabled(true)
+		t.prevMatchBtn.SetDisabled(true).SetDisabledStyle(tcell.StyleDefault.Background(colors.NavButton))
+		t.nextMatchBtn.SetDisabled(true).SetDisabledStyle(tcell.StyleDefault.Background(colors.NavButton))
 	}
 }
 
@@ -201,6 +205,56 @@ func (t *App) adjustTabWidths() {
 		tab.TabButton.SetLabel(labelText)
 		t.tabBar.ResizeItem(tab.TabFlex, tabFlexWidth, 0)
 	}
+}
+
+func (t *App) showContextWindowForTab(tab *Tab, lineNumber int) {
+    contextSize := 5
+
+    totalLines := len(tab.LogBuffer.GetLines())
+
+    // ensure line is within bounds
+    if lineNumber < 0 {
+        lineNumber = 0
+    } else if lineNumber >= totalLines {
+        lineNumber = totalLines - 1
+    }
+
+    startLine := lineNumber - contextSize
+    if startLine < 0 {
+        startLine = 0
+    }
+
+    endLine := lineNumber + contextSize
+    if endLine >= totalLines {
+        endLine = totalLines - 1
+    }
+
+    if startLine > endLine {
+        startLine = endLine
+    }
+
+    contextLines := tab.LogBuffer.GetLines()[startLine : endLine+1]
+
+    contextTextView := tview.NewTextView().
+        SetDynamicColors(true).
+        SetWrap(true).
+        SetTextAlign(tview.AlignLeft)
+
+    var contextContent strings.Builder
+    for _, line := range contextLines {
+        contextContent.WriteString(line.Content)
+        contextContent.WriteString("\n")
+    }
+    contextTextView.SetText(contextContent.String())
+
+    windowID := fmt.Sprintf("context-%d", time.Now().UnixNano())
+
+    title := fmt.Sprintf("Context for line %d", lineNumber+1)
+
+    contextWindow := NewWindow(t.App, contextTextView, title, t.contextPages, windowID)
+
+    t.contextPages.AddPage(windowID, contextWindow, true, true)
+    t.App.SetFocus(contextWindow)
 }
 
 func (t *App) loadLogs(namespace, pod, container string) {

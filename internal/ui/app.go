@@ -30,6 +30,7 @@ type App struct {
 	logPages         *tview.Pages
 	tabs             []*Tab
 	activeTab        int
+	contextPages     *tview.Pages
 }
 
 func LogExplorerTUI(model *model.Model) *App {
@@ -78,6 +79,10 @@ func (t *App) setupUI() error {
 		AddItem(mainArea, 0, 1, true).
 		AddItem(t.statusBar, 1, 0, false)
 
+	t.contextPages = tview.NewPages()
+	t.contextPages.AddPage("main", t.layout, true, true)
+	t.App.SetRoot(t.contextPages, true)
+
 	initialCluster := t.model.GetCurrentContext()
 	for i, cluster := range clusters {
 		if cluster == initialCluster {
@@ -102,5 +107,5 @@ func (t *App) Run() error {
 		return event
 	})
 
-	return t.App.SetRoot(t.layout, true).Run()
+	return t.App.Run()
 }

@@ -10,6 +10,7 @@ type ScrollableTextView struct {
 	App           *tview.Application
 	ScrollBar     *ScrollBar
 	updateHandler func()
+	onLineClick   func(lineNumber int)
 }
 
 func NewScrollableTextView(app *tview.Application, scrollBar *ScrollBar, updateHandler func()) *ScrollableTextView {
@@ -38,15 +39,31 @@ func (stv *ScrollableTextView) InputHandler() func(event *tcell.EventKey, setFoc
 func (stv *ScrollableTextView) MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (bool, tview.Primitive) {
 	handler := stv.TextView.MouseHandler()
 	return func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (bool, tview.Primitive) {
-		oldOffset, _ := stv.GetScrollOffset()
-		consumed, primitive := false, tview.Primitive(nil)
-		if handler != nil {
-			consumed, primitive = handler(action, event, setFocus)
+		x, y := event.Position()
+		if !stv.InRect(x, y) {
+			return false, nil
 		}
-		newOffset, _ := stv.GetScrollOffset()
-		if oldOffset != newOffset && stv.updateHandler != nil {
-			stv.updateHandler()
+
+		switch action {
+		case tview.MouseLeftClick:
+			lineNumber := stv.getLineFromPosition(y)
+            if stv.onLineClick != nil {
+                stv.onLineClick(lineNumber)
+            }
+			return true, stv
+		default:
+			return handler(action, event, setFocus)
 		}
-		return consumed, primitive
 	}
+}
+
+func (stv *ScrollableTextView) getLineFromPosition(y int) int {
+	_, vy, _, _ := stv.GetInnerRect()
+	scrollOffset, _ := stv.GetScrollOffset()
+	lineNumber := scrollOffset + (y - vy)
+	return lineNumber
+}
+
+func (stv *ScrollableTextView) SetOnLineClick(handler func(lineNumber int)) {
+	stv.onLineClick = handler
 }

@@ -32,7 +32,7 @@ type LogEntry struct {
 }
 
 type Client struct {
-	clientset *kubernetes.Clientset
+	Clientset *kubernetes.Clientset
 	config    *clientcmdapi.Config
 	debugLog  *log.Logger
 	logFile   *os.File
@@ -62,7 +62,7 @@ func NewClient() (*Client, error) {
 		return nil, err
 	}
 
-	client := &Client{clientset: clientset, config: config, debugLog: debugLog, logFile: logFile}
+	client := &Client{Clientset: clientset, config: config, debugLog: debugLog, logFile: logFile}
 	client.captureWarnings()
 	return client, nil
 }
@@ -92,7 +92,7 @@ func (c *Client) GetClusterNames() []string {
 }
 
 func (c *Client) GetCurrentContext() string {
-    return c.config.CurrentContext
+	return c.config.CurrentContext
 }
 
 func (c *Client) SwitchCluster(contextName string) error {
@@ -106,13 +106,13 @@ func (c *Client) SwitchCluster(contextName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to switch cluster: %v", err)
 	}
-	c.clientset = clientset
+	c.Clientset = clientset
 	c.captureWarnings()
 	return nil
 }
 
 func (c *Client) GetNamespaces() ([]string, error) {
-	namespaces, err := c.clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	namespaces, err := c.Clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (c *Client) GetNamespaces() ([]string, error) {
 
 func (c *Client) GetPodsWithContext(ctx context.Context, namespace string) ([]string, error) {
 	c.debugLog.Printf("Fetching pods for namespace: %s", namespace)
-	pods, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	pods, err := c.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		c.debugLog.Printf("Error fetching pods for namespace %s: %v", namespace, err)
 		return nil, err
@@ -142,7 +142,7 @@ func (c *Client) GetPodsWithContext(ctx context.Context, namespace string) ([]st
 }
 
 func (c *Client) GetContainers(namespace, pod string) ([]string, error) {
-	podInfo, err := c.clientset.CoreV1().Pods(namespace).Get(context.TODO(), pod, metav1.GetOptions{})
+	podInfo, err := c.Clientset.CoreV1().Pods(namespace).Get(context.TODO(), pod, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (c *Client) GetContainers(namespace, pod string) ([]string, error) {
 }
 
 func (c *Client) GetPods(namespace string) ([]string, error) {
-	pods, err := c.clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	pods, err := c.Clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func (c *Client) GetLogs(namespace, pod, container string, follow bool, tailLine
 		TailLines: tailLines,
 	}
 
-	req := c.clientset.CoreV1().Pods(namespace).GetLogs(pod, options)
+	req := c.Clientset.CoreV1().Pods(namespace).GetLogs(pod, options)
 
 	if !follow {
 		podLogs, err := req.DoRaw(context.TODO())
@@ -218,7 +218,7 @@ func (c *Client) GetLogsSince(namespace, pod, container string, since time.Time)
 		SinceSeconds: &sinceSeconds,
 	}
 
-	req := c.clientset.CoreV1().Pods(namespace).GetLogs(pod, opts)
+	req := c.Clientset.CoreV1().Pods(namespace).GetLogs(pod, opts)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
 		return "", err
@@ -235,7 +235,7 @@ func (c *Client) GetLogsSince(namespace, pod, container string, since time.Time)
 }
 
 func (c *Client) StreamAllLogs(ctx context.Context, logChan chan<- LogEntry, startTime time.Time) error {
-	namespaces, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	namespaces, err := c.Clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error fetching namespaces: %v", err)
 	}
@@ -250,7 +250,7 @@ func (c *Client) StreamAllLogs(ctx context.Context, logChan chan<- LogEntry, sta
 
 func (c *Client) streamNamespaceLogs(ctx context.Context, namespace string, logChan chan<- LogEntry, startTime time.Time) {
 	for {
-		pods, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+		pods, err := c.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			// fmt.Printf("Error fetching pods for namespace %s: %v\n", namespace, err) // revisit
 			return
@@ -272,7 +272,7 @@ func (c *Client) streamNamespaceLogs(ctx context.Context, namespace string, logC
 func (c *Client) streamContainerLogs(ctx context.Context, namespace, podName, container string, logChan chan<- LogEntry, startTime time.Time) {
 	for {
 		sinceSeconds := int64(time.Since(startTime).Seconds())
-		req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
+		req := c.Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 			Container:    container,
 			Follow:       true,
 			SinceSeconds: &sinceSeconds,
@@ -320,19 +320,19 @@ func (c *Client) streamContainerLogs(ctx context.Context, namespace, podName, co
 }
 
 func (c *Client) GetRecentLogs() ([]string, error) {
-	pods, err := c.clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	pods, err := c.Clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	var allLogs []string
 	for _, pod := range pods.Items {
-		req := c.clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
+		req := c.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
 			TailLines: int64Ptr(10),
 		})
 		podLogs, err := req.Stream(context.TODO())
 		if err != nil {
-			continue 
+			continue
 		}
 		podLogs.Close()
 

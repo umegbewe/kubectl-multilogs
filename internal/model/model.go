@@ -20,6 +20,16 @@ type Model struct {
 	LogStreamCancel   context.CancelFunc
 }
 
+type Namespace struct {
+	Name string
+}
+
+type Pod struct {
+	Name      string
+	Namespace string
+	Containers []string
+}
+
 func NewModel(k8sClient *k8s.Client) *Model {
 	return &Model{
 		K8sClient: k8sClient,

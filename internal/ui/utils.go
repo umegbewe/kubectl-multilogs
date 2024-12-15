@@ -17,19 +17,8 @@ func (t *App) setStatusError(message string) {
 }
 
 func (t *App) showLoading(message string) {
-	t.App.QueueUpdateDraw(func() {
-		t.statusBar.SetText(message + " Loading...")
-	})
+	t.statusBar.SetText(message + " Loading...")
 
-	// // go func() {
-	// 	for i := 0; i < 3; i++ {
-	// 		time.Sleep(500 * time.Millisecond)
-	// 		t.App.QueueUpdateDraw(func() {
-	// 			currentText := t.statusBar.GetText(false)
-	// 			t.statusBar.SetText(currentText + ".")
-	// 		})
-	// 	}
-	// }()
 }
 
 func createTreeNode(label string, isLeaf bool) *tview.TreeNode {
@@ -51,10 +40,10 @@ func setNodeWithToggleIcon(node *tview.TreeNode, label string, toggleFunc func()
 			node.CollapseAll()
 			node.SetText(fmt.Sprintf("▶ %s", label))
 		} else {
-			node.ExpandAll()
+			node.Expand()
 			node.SetText(fmt.Sprintf("▼ %s", label))
+			toggleFunc()
 		}
-		toggleFunc()
 	})
 }
 

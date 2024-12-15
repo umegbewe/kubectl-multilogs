@@ -2,11 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"github.com/umegbewe/kubectl-multilog/internal/controller"
 	"github.com/umegbewe/kubectl-multilog/internal/model"
 )
 
@@ -17,6 +19,8 @@ type App struct {
 	logTextView      *ScrollableTextView
 	searchInput      *tview.InputField
 	statusBar        *tview.TextView
+	controller       *controller.Controller
+	model            *model.Model
 	clusterDropdown  *tview.DropDown
 	liveTailBtn      *tview.Button
 	caseSensitiveBtn *tview.Button
@@ -26,27 +30,33 @@ type App struct {
 	nextMatchBtn     *tview.Button
 	matchCountText   *tview.TextView
 	searchTimer      *time.Timer
-	model            *model.Model
 	tabBar           *tview.Flex
 	logPages         *tview.Pages
 	tabs             []*Tab
 	activeTab        int
 	contextPages     *tview.Pages
 	mutex            sync.Mutex
+
+	namespaces       []*model.Namespace
+	pods             []*model.Pod
 }
 
 func LogExplorerTUI(model *model.Model) *App {
+	ctrl := controller.NewController(model.K8sClient)
 	tui := &App{
 		App:         tview.NewApplication(),
+		model:       model,
+		controller:  ctrl,
 		layout:      tview.NewFlex(),
 		hierarchy:   tview.NewTreeView().SetGraphics(false),
 		searchInput: tview.NewInputField().SetLabel("Search: ").SetLabelColor(colors.Accent),
 		statusBar:   tview.NewTextView().SetTextAlign(tview.AlignLeft),
-		model:       model,
 	}
 
-	tui.setupUI()
-	tui.refreshHierarchy()
+	if err := tui.setupUI(); err != nil {
+		log.Fatalf("Failed to set up UI: %v", err)
+	}
+
 	return tui
 }
 
@@ -103,11 +113,22 @@ func (t *App) Run() error {
 			if t.model.LiveTailActive {
 				t.stopLiveTail()
 			}
+			t.controller.Stop()
 			t.App.Stop()
 			return nil
 		}
 		return event
 	})
 
+	go func() {
+		namespace := make(chan []*model.Namespace, 1)
+		t.controller.RegisterNamespaceObserver(namespace)
+		go t.handleNamespaceUpdates(namespace)
+	
+		pod := make(chan []*model.Pod, 1) 
+		t.controller.RegisterPodObserver(pod)
+		go t.handlePodUpdates(pod)
+	}()
+	
 	return t.App.Run()
 }
